@@ -36,3 +36,10 @@ def split_testing_set(test_df, seed=None, frac=0.8):
         test_unknown.append(unknown_data)
 
     return pd.concat(test_known), pd.concat(test_unknown)
+
+
+def coverage(top_n_df, games_df):
+    recommended_games = top_n_df['bgg_id'].unique()
+    all_games = games_df['bgg_id'].unique()
+
+    return recommended_games.size / all_games.size
