@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+from collections import defaultdict
 
 
 def split_ratings_dataset(ratings_df, seed=None, frac=0.7):
@@ -43,3 +44,28 @@ def coverage(top_n_df, games_df):
     all_games = games_df['bgg_id'].unique()
 
     return recommended_games.size / all_games.size
+
+
+def diversity(top_n_df, games_df, criterions=['category', 'mechanic']):
+    games_df = games_df[['bgg_id'] + criterions].set_index('bgg_id')
+
+    criterion_diversity = {}
+    for criterion in criterions:
+        criterion_diversity[criterion] = np.unique(np.hstack(games_df[criterion].dropna())).size
+
+    top_n_df = top_n_df[['bgg_user_name', 'bgg_id']]
+    df = top_n_df.join(games_df, on='bgg_id', how='left')
+
+    diversity_per_user = defaultdict(list)
+
+    for _, user_df in df.groupby(by='bgg_user_name'):
+        for criterion in criterions:
+            user_criterion_diversity = np.unique(np.hstack(user_df[criterion].dropna())).size
+            diversity_per_user[criterion].append(user_criterion_diversity
+                                                 / criterion_diversity[criterion])
+
+    mean_diversity = {}
+    for criterion in criterions:
+        mean_diversity[criterion] = np.mean(diversity_per_user[criterion])
+
+    return mean_diversity
