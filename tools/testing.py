@@ -39,21 +39,16 @@ def split_testing_set(test_df, seed=None, frac=0.8):
     return pd.concat(test_known), pd.concat(test_unknown)
 
 
-def coverage(top_n_df, games_df):
+def coverage(top_n_df):
     recommended_games = top_n_df['bgg_id'].unique()
-    all_games = games_df['bgg_id'].unique()
 
-    return recommended_games.size / all_games.size
+    return recommended_games.size
 
 
 def diversity(top_n_df, games_df, criterions=['category', 'mechanic']):
     games_df = games_df[['bgg_id'] + criterions].set_index('bgg_id')
-
-    criterion_diversity = {}
-    for criterion in criterions:
-        criterion_diversity[criterion] = np.unique(np.hstack(games_df[criterion].dropna())).size
-
     top_n_df = top_n_df[['bgg_user_name', 'bgg_id']]
+
     df = top_n_df.join(games_df, on='bgg_id', how='left')
 
     diversity_per_user = defaultdict(list)
@@ -61,8 +56,7 @@ def diversity(top_n_df, games_df, criterions=['category', 'mechanic']):
     for _, user_df in df.groupby(by='bgg_user_name'):
         for criterion in criterions:
             user_criterion_diversity = np.unique(np.hstack(user_df[criterion].dropna())).size
-            diversity_per_user[criterion].append(user_criterion_diversity
-                                                 / criterion_diversity[criterion])
+            diversity_per_user[criterion].append(user_criterion_diversity)
 
     mean_diversity = {}
     for criterion in criterions:
