@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
+from lightfm import LightFM
 from lightfm.evaluation import precision_at_k, recall_at_k, reciprocal_rank, auc_score
 from tools.testing import split_testing_set, split_ratings_dataset
 from tools.testing import coverage, diversity
@@ -62,3 +63,54 @@ def evaluate_diversity_and_coverage(model, users_sample_size, dataset, games_df,
     print('Diversity: ' +  str(diversity(recommendations_df, games_df)))
     print('Coverage: ' +  str(coverage(recommendations_df))) 
     
+# rho, epsilon - only for adadelta    
+def gridsearch(interactions, test_interactions, item_features = None, k=5, num_threads=8,
+               schedules = ['adagrad', 'adadelta'], components = [32, 64, 128, 256],
+               learning_rates = [0.01, 0.05, 0.1], item_alphas = [1e-07, 1e-06, 1e-05], max_samples = [10, 15, 20],
+               rhos = [0.85, 0.9, 0.95], epsilons = [1e-07, 1e-06, 1e-05], epochs = [20, 40, 60]):
+    best_schedule, best_comp, best_lr, best_alpha, best_samples, best_rho, best_eps, best_epochs = schedules[0], components[0],
+    learning_rates[0], item_alphas[0], max_samples[0], rhos[0], epsilons[0], epochs[0]
+    best_train_precision = 0.00
+    best_test_precision = 0.00
+    
+    for schedule in schedules:
+        for component in components:
+            for lr in learning_rates:
+                for item_alpha in item_alphas:
+                    for sample in max_samples:
+                        if schedule is 'adagrad':
+                            for rho in rhos:
+                                for eps in epsilons:
+                                    model = LightFM(loss = 'warp', no_components = component, learning_schedule = schedule,
+                                                    learning_rate = lr, rho = rho, epsilon = eps, item_alpha = item_alpha,
+                                                    max_sampled = sample)
+                        if schedule is 'adadelta':
+                                    model = LightFM(loss = 'warp', no_components = component, learning_schedule = schedule,
+                                                    learning_rate = lr, item_alpha = item_alpha,
+                                                    max_sampled = sample)                                  
+                        for epoch in epochs:
+                                print('-----Params-----')
+                                print(f'Schedule: {schedule}, no_components: {component}, learning_rate: {lr}')
+                                if schedule is 'adagrad':
+                                    print(f'max_sampled: {sample}, rho: {rho}, epsilon: {eps}, epochs: {epoch}')
+                                if schedule is 'adadelta':
+                                    print(f'max_sampled: {sample}, epochs: {epoch}')
+                                model.fit(interactions, item_features = item_features, epochs=epoch, num_threads=num_threads)
+                                train_precision = precision_at_k(model, interactions,
+                                                                 item_features = item_features,
+                                                                 k=k, num_threads=num_threads).mean()
+                                test_precision = precision_at_k(model, test_interactions, train_interactions = interactions,
+                                                                item_features = item_features,
+                                                                k=k, num_threads= num_threads).mean()
+                                print(f'Train precision: {train_precision}, test precision: {test_precision}')
+                                if best_train_precision < train_precision:
+                                    best_train_precision = train_precision
+                                if best_test_precision < test_precision:
+                                    best_test_precision = test_precision
+                                    if schedule is 'adagrad': 
+                                        best_schedule, best_comp, best_lr, best_alpha, best_samples, best_rho, best_eps, best_epochs = schedule, component, lr, item_alpha, sample, rho, eps, epoch
+                                    if schedule is 'adadelta':
+                                        best_schedule, best_comp, best_lr, best_alpha, best_samples, best_epochs = schedule, component, lr, item_alpha, sample, epoch
+    return best_schedule, best_comp, best_lr, best_alpha, best_samples, best_rho, best_eps, best_epochs
+                            
+                
