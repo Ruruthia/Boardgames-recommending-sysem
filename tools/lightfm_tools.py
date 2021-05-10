@@ -141,7 +141,7 @@ def evaluate_diversity_and_coverage(
         N -- How many top recommendations are supposed to be prepared for each user. (default 10)
         
     """
-    users = dataset.mapping()[0].keys()[:user_sample_size]
+    users = list(dataset.mapping()[0].keys())[:users_sample_size]
     user_mapping = dataset.mapping()[0]
     games_mapping = dataset.mapping()[2]
     recommendations_df = pd.DataFrame()
