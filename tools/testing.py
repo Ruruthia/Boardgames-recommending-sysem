@@ -56,7 +56,7 @@ def split_testing_set(test_df, seed=None, frac=0.8):
 
 def coverage(top_n_df):
     """ Given recommendations made by the model, return number of games recommended
-        
+
         Parameters:
         top_n_df -- Dataframe of recommendations, should contain 'bgg_id' column.
     """
