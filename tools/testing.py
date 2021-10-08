@@ -4,6 +4,13 @@ from collections import defaultdict
 
 
 def split_ratings_dataset(ratings_df, seed=None, frac=0.7):
+    """ Split the ratings dataset by users into training and testing sets.
+
+        Parameters:
+        ratings_df -- Dataframe of ratings, should contain 'bgg_user_name' column.
+        seed -- Seed for numpy random number generator. (default None)
+        frac -- Determines what fraction of dataset should be used for training. (default 0.7)
+    """
     if seed is not None:
         np.random.seed(seed)
 
@@ -18,6 +25,14 @@ def split_ratings_dataset(ratings_df, seed=None, frac=0.7):
 
 
 def split_testing_set(test_df, seed=None, frac=0.8):
+    """ Split the testing dataset into known part, used for training the model,
+        and obscured part, used for calculating accuracy.
+
+        Parameters:
+        test_df -- Dataframe of ratings, should contain 'bgg_user_name' column.
+        seed -- Seed for numpy random number generator. (default None)
+        frac -- Determines what fraction of dataset should be used for training. (default 0.8)
+    """
     if seed is not None:
         np.random.seed(seed)
 
@@ -40,19 +55,30 @@ def split_testing_set(test_df, seed=None, frac=0.8):
 
 
 def coverage(top_n_df):
+    """ Given recommendations made by the model, return number of games recommended
+
+        Parameters:
+        top_n_df -- Dataframe of recommendations, should contain 'bgg_id' column.
+    """
     recommended_games = top_n_df['bgg_id'].unique()
 
     return recommended_games.size
 
 
 def diversity(top_n_df, games_df, criterions=['category', 'mechanic']):
+    """ Given recommendations made by the model and information about games,
+        return the mean diversity of per user recommendations for each criterion.
+
+        Parameters:
+        top_n_df -- Dataframe of recommendations, should contain 'bgg_user_name'
+            and 'bgg_id' columns.
+        games_df -- Dataframe of games, should contain 'bgg_id' column, and columns
+            corresponding to each criterion containing list of item attributes.
+        criterions -- List of criterions, each should be present in games_df.
+    """
     games_df = games_df[['bgg_id'] + criterions].set_index('bgg_id')
-
-    criterion_diversity = {}
-    for criterion in criterions:
-        criterion_diversity[criterion] = np.unique(np.hstack(games_df[criterion].dropna())).size
-
     top_n_df = top_n_df[['bgg_user_name', 'bgg_id']]
+
     df = top_n_df.join(games_df, on='bgg_id', how='left')
 
     diversity_per_user = defaultdict(list)
@@ -60,8 +86,7 @@ def diversity(top_n_df, games_df, criterions=['category', 'mechanic']):
     for _, user_df in df.groupby(by='bgg_user_name'):
         for criterion in criterions:
             user_criterion_diversity = np.unique(np.hstack(user_df[criterion].dropna())).size
-            diversity_per_user[criterion].append(user_criterion_diversity
-                                                 / criterion_diversity[criterion])
+            diversity_per_user[criterion].append(user_criterion_diversity)
 
     mean_diversity = {}
     for criterion in criterions:
